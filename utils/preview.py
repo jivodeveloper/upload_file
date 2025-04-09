@@ -8,6 +8,7 @@ from PIL import Image, ImageTk
 import io
 import mimetypes
 import webbrowser
+import shutil
 
 class FilePreviewWindow(tk.Toplevel):
     """Window for previewing files"""
@@ -179,46 +180,147 @@ class FilePreviewWindow(tk.Toplevel):
         text_widget.config(state=tk.DISABLED)  # Make read-only
     
     def preview_pdf(self, pdf_path):
-        """Preview PDF file using system default if possible, otherwise show message"""
+        """Preview PDF file"""
         try:
-            # Attempt to open with system default PDF viewer
-            if platform.system() == "Windows":
-                os.startfile(pdf_path)
-            elif platform.system() == "Darwin":  # macOS
-                subprocess.call(["open", pdf_path])
-            else:  # Linux
-                subprocess.call(["xdg-open", pdf_path])
+            # Create a frame for the PDF message and buttons
+            pdf_frame = ttk.Frame(self.main_frame)
+            pdf_frame.pack(fill=tk.BOTH, expand=True)
             
-            # Show message in window
-            message = (
-                f"PDF file is being opened in your default PDF viewer.\n\n"
+            # PDF preview message
+            pdf_info = (
+                f"PDF Preview\n\n"
                 f"File: {os.path.basename(pdf_path)}\n"
-                f"If the PDF did not open automatically, please check your system's default PDF viewer settings."
+                f"Size: {os.path.getsize(pdf_path) / 1024:.1f} KB\n\n"
+                f"PDF files can be opened with your system's default PDF viewer."
             )
-            self.show_message(message)
+            
+            info_label = ttk.Label(
+                pdf_frame, 
+                text=pdf_info,
+                justify=tk.CENTER,
+                font=("Arial", 11)
+            )
+            info_label.pack(pady=20)
+            
+            # Buttons frame
+            btn_frame = ttk.Frame(pdf_frame)
+            btn_frame.pack(pady=20)
+            
+            # Open button
+            open_btn = ttk.Button(
+                btn_frame, 
+                text="Open with Default Viewer",
+                command=lambda: self.open_with_system_viewer(pdf_path)
+            )
+            open_btn.pack(side=tk.LEFT, padx=10)
+            
+            # Save as button
+            save_btn = ttk.Button(
+                btn_frame, 
+                text="Save As...",
+                command=lambda: self.save_file_as(pdf_path)
+            )
+            save_btn.pack(side=tk.LEFT, padx=10)
             
         except Exception as e:
-            self.show_error(f"Error opening PDF: {str(e)}")
+            self.show_error(f"Error preparing PDF preview: {str(e)}")
+    
+    def open_with_system_viewer(self, file_path):
+        """Open a file with the system's default application"""
+        try:
+            if platform.system() == "Windows":
+                os.startfile(file_path)
+            elif platform.system() == "Darwin":  # macOS
+                subprocess.call(["open", file_path])
+            else:  # Linux
+                subprocess.call(["xdg-open", file_path])
+        except Exception as e:
+            self.show_error(f"Error opening file: {str(e)}")
+    
+    def save_file_as(self, source_path):
+        """Save a file to a user-selected location"""
+        try:
+            # Get file name and extension
+            file_name = os.path.basename(source_path)
+            file_ext = os.path.splitext(file_name)[1]
+            
+            # Ask for save location
+            from tkinter import filedialog
+            target_path = filedialog.asksaveasfilename(
+                defaultextension=file_ext,
+                filetypes=[(f"{file_ext.upper()[1:]} files", f"*{file_ext}"), ("All files", "*.*")],
+                initialfile=file_name
+            )
+            
+            if target_path:
+                # Copy the file
+                shutil.copy2(source_path, target_path)
+                
+                # Show success message
+                ttk.Label(
+                    self.main_frame,
+                    text=f"File saved successfully to:\n{target_path}",
+                    foreground="green"
+                ).pack(pady=10)
+        except Exception as e:
+            self.show_error(f"Error saving file: {str(e)}")
     
     def preview_html(self, html_path):
         """Preview HTML file in system browser"""
+        try:
+            # Create a frame for the HTML message and buttons
+            html_frame = ttk.Frame(self.main_frame)
+            html_frame.pack(fill=tk.BOTH, expand=True)
+            
+            # HTML preview message
+            html_info = (
+                f"HTML Preview\n\n"
+                f"File: {os.path.basename(html_path)}\n"
+                f"Size: {os.path.getsize(html_path) / 1024:.1f} KB\n\n"
+                f"HTML files can be opened in your system's default web browser."
+            )
+            
+            info_label = ttk.Label(
+                html_frame, 
+                text=html_info,
+                justify=tk.CENTER,
+                font=("Arial", 11)
+            )
+            info_label.pack(pady=20)
+            
+            # Buttons frame
+            btn_frame = ttk.Frame(html_frame)
+            btn_frame.pack(pady=20)
+            
+            # Open button
+            open_btn = ttk.Button(
+                btn_frame, 
+                text="Open in Browser",
+                command=lambda: self.open_html_in_browser(html_path)
+            )
+            open_btn.pack(side=tk.LEFT, padx=10)
+            
+            # Save as button
+            save_btn = ttk.Button(
+                btn_frame, 
+                text="Save As...",
+                command=lambda: self.save_file_as(html_path)
+            )
+            save_btn.pack(side=tk.LEFT, padx=10)
+            
+        except Exception as e:
+            self.show_error(f"Error preparing HTML preview: {str(e)}")
+    
+    def open_html_in_browser(self, html_path):
+        """Open HTML file in the default web browser"""
         try:
             # Convert to file URL
             file_url = f"file://{os.path.abspath(html_path)}"
             
             # Open in default web browser
             webbrowser.open(file_url)
-            
-            # Show message in window
-            message = (
-                f"HTML file is being opened in your default web browser.\n\n"
-                f"File: {os.path.basename(html_path)}\n"
-                f"If the browser did not open automatically, please check your system settings."
-            )
-            self.show_message(message)
-            
         except Exception as e:
-            self.show_error(f"Error opening HTML: {str(e)}")
+            self.show_error(f"Error opening HTML in browser: {str(e)}")
     
     def show_message(self, message):
         """Display a message"""
@@ -246,12 +348,45 @@ class FilePreviewWindow(tk.Toplevel):
         ).pack(pady=20)
     
     def show_unsupported(self, file_path, file_type):
-        """Show message for unsupported file types"""
+        """Show message for unsupported file types with open option"""
+        # Create frame
+        unsupported_frame = ttk.Frame(self.main_frame)
+        unsupported_frame.pack(fill=tk.BOTH, expand=True)
+        
+        # Message
         message = (
             f"Preview not available for this file type: {file_type}\n\n"
-            f"File: {os.path.basename(file_path)}"
+            f"File: {os.path.basename(file_path)}\n"
+            f"Size: {os.path.getsize(file_path) / 1024:.1f} KB\n\n"
+            f"You can try to open it with your system's default application."
         )
-        self.show_message(message)
+        
+        ttk.Label(
+            unsupported_frame, 
+            text=message,
+            justify=tk.CENTER,
+            wraplength=780
+        ).pack(pady=20)
+        
+        # Buttons frame
+        btn_frame = ttk.Frame(unsupported_frame)
+        btn_frame.pack(pady=20)
+        
+        # Open button
+        open_btn = ttk.Button(
+            btn_frame, 
+            text="Open with Default Application",
+            command=lambda: self.open_with_system_viewer(file_path)
+        )
+        open_btn.pack(side=tk.LEFT, padx=10)
+        
+        # Save as button
+        save_btn = ttk.Button(
+            btn_frame, 
+            text="Save As...",
+            command=lambda: self.save_file_as(file_path)
+        )
+        save_btn.pack(side=tk.LEFT, padx=10)
 
 
 def get_file_type(file_path):
