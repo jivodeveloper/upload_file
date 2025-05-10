@@ -24,6 +24,9 @@ class SSHClient:
                 username=self.username,
                 password=self.password
             )
+            
+            print(self.client)
+            # Check if the remote directory exists
             return True, None
         except Exception as e:
             error_msg = f"SSH Connection Error: {str(e)}"
@@ -180,7 +183,7 @@ class SSHClient:
             # Open SFTP if not already open
             if not self.sftp:
                 success, error = self.open_sftp()
-                if not success:
+                if not success:      
                     return None, error
             
             # Construct remote file path
